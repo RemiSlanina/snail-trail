@@ -1,11 +1,56 @@
 /** @type {HTMLCanvasElement} */ 
 // TO-DO: delete unnecessary comments 
+/* check for crashing due to canvas: 
+if (isFinite(this.x) && isFinite(this.y)) {
+    ctx.drawImage( ... );
+} */
+
+    // TO DO 
+    /* 
+    Flutter toward light
+    Flee from thunder
+    Fade after a while
+    Change color near the moon...
+*/
 const canvas = document.getElementById('canvas1'); 
 const ctx = canvas.getContext('2d'); 
-const CANVAS_WIDTH = canvas.width = 800;
-const CANVAS_HEIGHT = canvas.height = 700; 
+let canvasWidth; 
+let canvasHeight; 
 let scrollSpeed = 7; 
 //let globalFrameCount = 0; 
+
+// resize pixel and dimensions of the canvas 
+// call once at the beginning, too 
+// scale dynamically 
+function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1; 
+
+    canvas.width = window.innerWidth; 
+    canvas.height = window.innerHeight; 
+
+    canvas.style.width = window.innerWidth + 'px'; 
+    canvas.style.height = window.innerHeight + 'px'; 
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+
+    //helper vars for quick access 
+    canvasWidth = canvas.width;
+    canvasHeight = canvas.height; 
+
+    // resize snail (maybe make Sprite resize() method!) 
+    // TO DO!
+    /* 
+    if (typeof snail != 'undefined') {
+        snail.x = Math.floor((canvasWidth / 2) - (snail.spriteWidth * snail.scale) / 2);
+        snail.y = canvasHeight - snail.spriteHeight * snail.scale;
+    } */
+
+
+}
+resizeCanvas();
+// if user resizes window: 
+window.addEventListener('resize', resizeCanvas());
 
 // ** PARALLAX **
 const parallaxLayer1 = new Image(); 
@@ -73,59 +118,67 @@ class Sprite {
     }
 }
 
-// CREATE SNAIL SPRITE 
+// CREATE SPRITES 
 const snail = new Sprite({
-    src: 'Snail-Sprite-002.svg', 
+    src: 'snail-sprite-002.svg', 
     spriteWidth: 215,
     spriteHeight: 120, 
-    x: Math.floor((CANVAS_WIDTH/2) - 215/2), 
-    y: CANVAS_HEIGHT-120, 
+    x: Math.floor((canvasWidth/2) - 215/2), 
+    y: canvasHeight-120, 
     scale: 1, 
     frameStaggerRate: 5, 
-    maxFrames: 8, 
+    maxFrames: 8, //actually 0-8
     states: ['normal', 'curled', 'butterfly', 'ghost'], 
     startState: 'normal'
 });
+const butterfly = new Sprite({
+    src: 'butterfly-sprite-01.svg',
+    spriteWidth: 100, 
+    spriteHeight: 80,
+    x: Math.floor((canvasWidth/2) - 100/2),
+    y: canvasHeight/2,
+    scale: 0.7, 
+    frameStaggerRate: 5, 
+    maxFrames: 6, //acutally 0-6 
+    states: ['white', 'black', 'color'], 
+    startState: 'white'
+}); 
 
+// BUTTERFLY SWARMS 
+const swarm = [];
+for (let i = 0; i < 20; i++) {
 
-/* old code:  */
-/* 
-// ** SPRITE **
-const snailSprite = new Image(); 
-snailSprite.src = 'Snail-Sprite-002.svg'; 
-const spriteWidth = 215; 
-const spriteHeight = 120; 
-let snailFrameX = 0; 
-let snailFrameY = 0; // for diffenent rows, currently only 1
-//let globalFrameCount = 0; 
-const frameStaggerRate = 5;
-// ** CAN HAVE DIFFERENT STATES ** 
-// corresponding to the array numbers of Snail-Sprite-002.svg
-// normal state = snailFrameY == 0 
-// curled state = snailFrameY == 1 
-const snailStates = ['normal', 'curled', 'butterfly', 'ghost']; 
-let currentSnailState = snailStates[0]; //starting off in normal mode 
+    let xb = Math.floor(Math.random()*(canvasWidth-100));
+    let yb = Math.floor(Math.random()*canvasHeight-80);
 
-// simplest animation, just one animation: 
-// curl up when clicked: 
-canvas.addEventListener('click', () => {
-    snailFrameY = snailFrameY === 0 ? 1 : 0; 
-    snailFrameX = 0; 
-});  */
+  swarm.push(new Sprite({
+    src: 'butterfly-sprite-01.svg',
+    spriteWidth: 100, 
+    spriteHeight: 80,
+    x: xb,
+    y: yb,
+    scale: 0.7, 
+    frameStaggerRate: 5, 
+    maxFrames: 6, //acutally 0-6 
+    states: ['white', 'black', 'color'], 
+    startState: 'white'
+  })); 
+}
 
+// change snail state on click here
 canvas.addEventListener('click', () => {
     const nextIndex = (snail.states.indexOf(snail.currentState) + 1) % snail.states.length; 
     snail.setState(snail.states[nextIndex]);
     console.log('Changed state to:', snail.currentState);
     
 })
-
+// background layer class for parallax effects: 
 class Layer {
     constructor(image,speedModifier){
         this.x = 0; 
         this.y = 0; 
-        this.width = 2400; 
-        this.height = 700; 
+        //this.width = 2400; 
+        //this.height = 700; 
         this.image = image; 
         this.speedModifier = speedModifier; 
         this.speed = scrollSpeed * this.speedModifier;
@@ -140,8 +193,12 @@ class Layer {
         //this.x = globalFrameCount *this.speed % this.width;
     }
     draw(){
-        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
-        ctx.drawImage(this.image, this.x + this.width, this.y, this.width, this.height);
+        const heightRatio = canvasHeight/this.image.height; 
+        const targetHeight = canvasHeight; 
+        const targetWidth = this.image.width * heightRatio; 
+
+        ctx.drawImage(this.image, this.x, this.y, targetWidth, targetHeight);
+        ctx.drawImage(this.image, this.x + targetWidth, this.y, targetWidth, targetHeight);
     }
 }
 
@@ -165,7 +222,7 @@ function stopscrollSpeed(){
 }
 
 function animate(){
-    ctx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+    ctx.clearRect(0,0,canvasWidth,canvasHeight);
 
     // slow down or speed up in walking (creeping) mode 
     if (snail.frameY === 0){ //moving state 
@@ -211,23 +268,6 @@ function animate(){
         object.update();
         object.draw();
     }); 
-
-    //ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    //ctx.fillRect(100,50,100,100);
-    //ctx.drawImage(snailSprite,0,0);
-    //drawImage with 9 arguments:
-    // sx = source x (on image)
-    // dx = dimensions x (on canvas)
-    //ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
-
-    // ** SNAIL ON FULL SCREEN (LARGE) ** 
-    //ctx.drawImage(snailSprite, snailFrameX*spriteWidth, 0 , spriteWidth, spriteHeight, 20, 130, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // ** SMALL SCALE SNAIL ** 
-    //ctx.drawImage(snailSprite, snailFrameX*spriteWidth, 0, spriteWidth, spriteHeight, 220, 240, 400, CANVAS_HEIGHT);
-    //this would be for spritesheet with columns and rows: 
-    //ctx.drawImage(snailSprite, snailFrameX*spriteWidth, snailFrameY*spriteHeight, spriteWidth, spriteHeight, 220, 20, 400, CANVAS_HEIGHT);
-    
     
     snail.draw(ctx); 
     // snail only curles up once: 
@@ -235,14 +275,14 @@ function animate(){
     //if (!(snail.frameY === 1 && snail.frameX === 8)) snail.update(); 
     if (!(snail.currentState === "curled" && snail.frameX === 8)) snail.update(); 
 
-    //reset globalFrameCount (sprite) after one cycle
-    /* if (globalFrameCount % snail.frameStaggerRate === 0){
-        if (snail.frameX < 8) snail.frameX++; 
-        else snail.frameX = 0; 
-    } */
-    
-    //snail.frameCounter++;
+    butterfly.draw(ctx); 
+    butterfly.update(); 
 
+    swarm.forEach(b => {
+        b.draw(ctx); 
+        b.update(); 
+    })
+    
     requestAnimationFrame(animate);
 }
 animate();
