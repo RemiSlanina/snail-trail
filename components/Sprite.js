@@ -21,22 +21,13 @@ export class Sprite {
     this.states = options.states || ["default"];
     this.currentState = options.startState || this.states[0];
     this.frameY = this.states.indexOf(this.currentState);
-    this.maxFrames = options.maxFrames || 8;
-    this.stateFrames = options.stateFrames || [8, 6, 6];
+    this.maxFrames = options.maxFrames || 8; //max index
+    this.stateFrames = options.stateFrames || [8, 6, 6]; //means frames 0..8
 
     this.frameX = 0;
-    this.frameStaggerRate = options.frameStaggerRate || 5;
-    this.frameCounter = 0;
 
     /* for butterflies only */
     this.flutter = options.flutter || false;
-
-    /* random movement speed: 0.5 base this.speed, 
-    + variation between 0 - 0.5  */
-    /*     this.speed = 0.5 + Math.random() * 0.5;
-    this.angle = Math.random() * Math.PI * 2; // For sine movement
-    this.angleSpeed = 0.02 + Math.random() * 0.02;
-    this.offset = Math.random() * 100;  */
 
     // New movement = FLUTTER UP <3
     this.rising = options.rising || false;
@@ -45,42 +36,57 @@ export class Sprite {
     this.maxRise = options.maxRise || 500;
     this.angle = Math.random() * Math.PI * 2;
     this.angleSpeed = 0.02 + Math.random() * 0.02;
+
+    // fix speed: pps
+    this.msPerFrame = options.msPerFrame ?? 150; // let's start with 150 ms per frame
+    this.accum = 0;
   }
   slowDown() {
-    if (this.frameStaggerRate < 20) this.frameStaggerRate++;
+    this.msPerFrame = Math.min(this.msPerFrame + 20, 300);
   }
   speedUp() {
-    if (this.frameStaggerRate > 0) this.frameStaggerRate--;
+    this.msPerFrame = Math.max(this.msPerFrame - 20, 16);
   }
   setState(state) {
     if (this.states.includes(state)) {
       this.currentState = state;
       this.frameY = this.states.indexOf(state);
       this.frameX = 0;
-      this.frameCounter = 0;
+      // reset timers
+      this.accum = 0;
       this.maxFrames = this.stateFrames[this.states.indexOf(state)];
     }
   }
-  update(deltaTime) {
+  update(dt) {
+    this.accum += dt * 1000;
+    while (this.accum >= this.msPerFrame) {
+      this.accum -= this.msPerFrame;
+      this.frameX = (this.frameX + 1) % (this.maxFrames + 1);
+    }
+
+    /* 
+    // I don't need this anymore
     this.frameCounter++;
     if (this.frameCounter % this.frameStaggerRate === 0) {
       this.frameX = (this.frameX + 1) % (this.maxFrames + 1);
-    }
+    } */
+
     /* if (this.flutter) {
       this.angle += this.angleSpeed;
       this.y += Math.sin(this.angle) * this.speed;
       this.x += Math.cos(this.angle + this.offset) * this.speed * 0.5;
     } */
 
+    // using dt*60 to pretend FPS ("frame feel")
     if (this.flutter) {
-      this.angle += this.angleSpeed;
+      this.angle += this.angleSpeed * dt * 60;
       this.y += Math.sin(this.angle) * 0.3;
       this.x += Math.cos(this.angle + this.angleSpeed) * 0.2;
     }
 
     if (this.rising) {
-      this.y -= this.riseSpeed; // upward
-      this.x += this.riseDirection * 0.3; // slight sideways drift
+      this.y -= this.riseSpeed * dt * 60; // upward
+      this.x += this.riseDirection * 0.3 * dt * 60; // slight sideways drift
       //stop after maxRise
       if (this.initialY - this.y > this.maxRise) this.rising = false;
     }

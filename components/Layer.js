@@ -1,63 +1,64 @@
-import { config } from "./config.js"; // background layer class for parallax effects:
+import { config } from "./config.js";
+
+// background layer class for parallax effects:
 
 /* this class creates layer files that can be used for parallax effects, 
-   or as static layers (just set speedModifier to 0) */
+   or as static layers (just set speedModifier to 0).
+   Original width: 2400px | original height: 700px
+   */
+
 export class Layer {
   constructor(image, speedModifier, canvasHeight) {
     this.x = 0;
     this.y = 0;
-    //this.width = this.image.width;
     //this.width = 2400;
     //this.height = 700;
     this.image = image;
     this.speedModifier = speedModifier;
-    this.speed = config.scrollSpeed * this.speedModifier;
+
+    // pixesl per second at scrollSpeed = 1;
+    this.basePPS = 60;
+
     this.getTargetWidth = (currentCanvasHeight) => {
-      const heightRatio = currentCanvasHeight / this.image.height;
-      return this.image.width * heightRatio;
+      // naturalWidth/H.: intrinsic pixel dimensions of the image are reliable once decoded
+      const h = this.image.naturalHeight || this.image.height || 1;
+      const w = this.image.naturalWidth || this.image.width || 1;
+      const heightRatio = currentCanvasHeight / h;
+      return w * heightRatio;
     };
   }
-  update(currentCanvasHeight) {
-    this.speed = config.scrollSpeed * this.speedModifier;
-    this.x -= this.speed;
+  update(currentCanvasHeight, dt) {
+    // dt = seconds since last frame (duration)
+
+    // time base movement now, instead of relying on FPS
+    // because there are low-FPS and high-FPS browsers
+    // compute the speed in pixels per second
+    const pps = config.scrollSpeed * this.basePPS * this.speedModifier; // px/sec
+    // distanceMoved = pps * dt
+    this.x -= pps * dt; // time since last frame * speed (pps)
+
     const targetWidth = this.getTargetWidth(currentCanvasHeight);
 
     if (this.x <= -targetWidth) {
       this.x += targetWidth;
     }
-    //this.x = this.x - this.speed;
-    // instead ( w/ globalFrameCount):
-    //this.x = globalFrameCount *this.speed % this.width;
   }
   draw(currentCanvasHeight, ctx) {
-    const heightRatio = currentCanvasHeight / this.image.height;
+    const h = this.image.naturalHeight || this.image.height || 1;
+    const w = this.image.naturalWidth || this.image.width || 1;
+    const heightRatio = currentCanvasHeight / h;
+    const targetWidth = w * heightRatio;
     const targetHeight = currentCanvasHeight;
-    const targetWidth = this.image.width * heightRatio;
 
+    // Draw 3 tiles; overlap by 1px to hide seams (Firefox)
     for (let i = -1; i <= 1; i++) {
       ctx.drawImage(
         this.image,
         Math.floor(this.x + i * targetWidth),
         this.y,
-        Math.floor(targetWidth),
+        Math.ceil(targetWidth) + 1, //seam in Firefox needs + 1px
         targetHeight
       );
     }
-    /*   
-  ctx.drawImage(
-      this.image,
-      Math.floor(this.x),
-      this.y,
-      Math.floor(targetWidth),
-      targetHeight
-    );
-    ctx.drawImage(
-      this.image,
-      Math.floor(this.x + targetWidth),
-      this.y,
-      Math.floor(targetWidth),
-      targetHeight
-    );
-     */
   }
 }

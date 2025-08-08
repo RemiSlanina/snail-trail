@@ -3,8 +3,8 @@ import { config } from "./config.js";
 
 export function isOverlapping(x, y, width, height, others) {
   return others.some((other) => {
-    const dx = others.x - x;
-    const dy = others.y - y;
+    const dx = other.x - x;
+    const dy = other.y - y;
     return Math.abs(dx) < width && Math.abs(dy) < height;
   });
 }
@@ -62,7 +62,7 @@ export function spawnButterflySwarmFromShell(
         src: "./assets/sprites/Butterfly-Sprite-01.svg",
         spriteWidth: 100,
         spriteHeight: 80,
-        x: shellX / 2 + offsetX - 30,
+        x: shellX + offsetX - 30,
         y: shellY + offsetY,
         scale: size,
         frameStaggerRate: 15,
@@ -79,13 +79,43 @@ export function spawnButterflySwarmFromShell(
   }
   return bswarm;
 }
-//slow down the parallax background
+// reused for target scroll speed:
 export function slowDownscrollSpeed() {
-  if (config.scrollSpeed > 0) config.scrollSpeed--;
+  if (config.targetScrollSpeed > 0) config.scrollSpeed--;
 }
 export function speedUpscrollSpeed() {
-  if (config.scrollSpeed < 7) config.scrollSpeed++;
+  if (config.targetScrollSpeed < 7) config.scrollSpeed++;
 }
 export function stopscrollSpeed() {
-  config.scrollSpeed = 0;
+  config.targetScrollSpeed = 0;
+}
+
+export function applyScrollSpeedEasing(dt) {
+  // diff: how far we still have to go
+  const diff = config.targetScrollSpeed - config.scrollSpeed;
+  const step = Math.sign(diff) * config.accelPerSec * dt;
+  // avoid overshooting this frame : keep step smaller or equal
+  // to diff
+  if (Math.abs(step) >= Math.abs(diff)) {
+    config.scrollSpeed = config.targetScrollSpeed;
+  } else {
+    // now move towards it without overshooting..
+    config.scrollSpeed += step;
+  }
+}
+
+export async function loadImages(imgs) {
+  await Promise.all(
+    imgs.map((img) => {
+      // avoid accidental wrong types (non-images)
+      if (!(img instanceof HTMLImageElement)) return Promise.resolve();
+      // then decode
+      if (img.decode) return img.decode().catch(() => {});
+      return new Promise((res) => {
+        if (img.complete) return res();
+        img.onload = () => res();
+        img.onerror = () => res();
+      });
+    })
+  );
 }

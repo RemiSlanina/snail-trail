@@ -8,12 +8,9 @@ import { spawnButterflySwarmFromShell } from "./components/utils.js";
 import { slowDownscrollSpeed } from "./components/utils.js";
 import { speedUpscrollSpeed } from "./components/utils.js";
 import { stopscrollSpeed } from "./components/utils.js";
-
+import { applyScrollSpeedEasing } from "./components/utils.js";
+import { loadImages } from "./components/utils.js";
 // TO-DO: remove unnecessary comments
-/* check for crashing due to canvas: 
-if (isFinite(this.x) && isFinite(this.y)) {
-    ctx.drawImage( ... );
-} */
 
 // TO DO
 // detect colliding sprites
@@ -26,7 +23,7 @@ if (isFinite(this.x) && isFinite(this.y)) {
     Fade after a while
     Change color near the moon...
     
-    Optimize for mobile using @media and CSS?
+    Optimize for mobile?
     Fix swarm overlapping logic?
     Animate butterfly swarm reacting to tap / touch?
 */
@@ -84,8 +81,6 @@ const swarm = spawnButterflySwarmFromShell(
   "black",
   "color"
 );
-
-//const snailButterfly = spawnButterflySwarmFromShell(snail.x, snail.y, 1, 1);
 
 // ********************** ADD EVENT LISTENER **********************
 canvas.addEventListener("click", () => {
@@ -152,9 +147,9 @@ function resizeCanvas() {
     butterfly.y = snail.y + (Math.random() - 0.5) * 20;
   }
 
+  // TO DO
   // insert swarm class maybe tomorrow ...? Let the swarm manage itself
-  //insert rise logic here, too
-  // TO DO rise
+  // insert rise logic here, too
   if (swarm && Array.isArray(swarm)) {
     swarm.forEach((b, i) => {
       //scatter butterflies randomly
@@ -171,25 +166,31 @@ function resizeCanvas() {
 
 // ********************** ANIMATE **********************
 
-function animate() {
+function animate(now = 0) {
+  const dt = Math.min((now - config.lastTime) / 1000, 0.05); // seconds, clamp big jupms
+  config.lastTime = now;
+
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  // slow down or speed up in walking (creeping) mode
+  //update scrollSpeed target per state, then apply easing
+  applyScrollSpeedEasing(dt);
+
+  //  adjusting tempo of the parallax background AROUND the snail
+  //  in walking (creeping) mode
   // stop in curled mode
   if (snail.frameY === 0) {
     //moving state
-    // adjust tempo
+    // speed up during push frames, slow otherwise
     if (snail.frameX >= 3 && snail.frameX <= 6) {
-      speedUpscrollSpeed();
+      config.targetScrollSpeed = 1.0;
     } else {
-      slowDownscrollSpeed();
+      config.targetScrollSpeed = 0.3;
     }
+  } else if (snail.frameY === 1) {
+    //curled
+    config.targetScrollSpeed = 0.0;
   }
-  if (snail.frameY === 1) {
-    stopscrollSpeed();
-  }
-  // slow down certain parts of the curl animation
-  // play around a bit with timing the shell
+  // adjusting tempo of the snail animation itself:
   if (snail.currentState === "curled") {
     if (snail.frameX === 4) {
       snail.slowDown();
@@ -215,12 +216,8 @@ function animate() {
     }
   }
 
-  /*  
-     stopscrollSpeed();
-     */
-
   parallaxLayers.forEach((object) => {
-    object.update(canvasHeight);
+    object.update(canvasHeight, dt);
     object.draw(canvasHeight, ctx);
   });
 
@@ -228,13 +225,8 @@ function animate() {
   // snail only curles up once:
   // if not in the last frame of curl animation, it updates:
   //if (!(snail.frameY === 1 && snail.frameX === 8)) snail.update();
-  if (!(snail.currentState === "curled" && snail.frameX === 8)) snail.update();
-
-  /* 
-  if (snail.currentState === "shaking") {
-    butterfly.draw(ctx);
-    butterfly.update();
-  } */
+  if (!(snail.currentState === "curled" && snail.frameX === 8))
+    snail.update(dt);
 
   // ** SPAWN BUTTERFLIES AFTER 2 SECONDS **
   if (snail.currentState == "shaking") {
@@ -249,7 +241,7 @@ function animate() {
       //console.log("swarm");
       swarm.forEach((b) => {
         b.draw(ctx);
-        b.update();
+        b.update(dt);
       });
       config.butterfliesSpawned = true;
       snail.setState("standing");
@@ -263,25 +255,45 @@ function animate() {
   if (snail.currentState == "standing") {
     swarm.forEach((b) => {
       b.draw(ctx);
-      b.update();
+      b.update(dt);
     });
   }
 
   // DEBUG
-  /*   swarmCollide.draw(ctx);
-  swarmCollide.update(); */
+  /* swarmCollide.draw(ctx);
+  swarmCollide.update(dt); */
 
   /* debug */
+  /* still in Firefox */
   //ctx.fillStyle = "red";
   //ctx.fillRect(0, canvasHeight - 1, canvasWidth, 1); // bottom red line
   /* debug */
   requestAnimationFrame(animate);
 }
 
-// ********************** EXECUTE **********************
-// ** INITIAL RESIZE **
-resizeCanvas();
+// ********************** LOAD IMAGES AND EXECUTE **********************
+
+const images = [
+  parallaxLayer1,
+  parallaxLayer2,
+  parallaxLayer3,
+  parallaxLayer4,
+  ParallaxLayer5,
+  snail.image,
+];
+
+// resize window only after getting the correct img size (after img is loaded)
+(async () => {
+  await loadImages(images);
+  resizeCanvas();
+  config.lastTime = performance.now();
+  requestAnimationFrame(animate);
+})();
+
 console.log(`Snail at x=${snail.x}, canvasWidth=${canvasWidth}`);
-// ** LATER RESIZES OF WINDOW **
-window.addEventListener("resize", resizeCanvas);
-animate();
+
+// ********************** LISTEN FOR RESIZE EVENTS **********************
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  config.lastTime = performance.now();
+});
