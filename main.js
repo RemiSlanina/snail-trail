@@ -1,6 +1,6 @@
 /** @type {HTMLCanvasElement} */
-import { Sprite } from "./components/sprite.js";
-import { Layer } from "./components/layer.js";
+import { Sprite } from "./components/sprite.mjs";
+import { Layer } from "./components/layer.mjs";
 import { isOverlapping } from "./components/utils.js";
 import { createSwarm } from "./components/utils.js";
 import { config } from "./components/config.js";

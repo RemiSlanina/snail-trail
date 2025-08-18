@@ -1,4 +1,4 @@
-import { Sprite } from "./sprite.js";
+import { Sprite } from "./sprite.mjs";
 import { config } from "./config.js";
 
 export function isOverlapping(x, y, width, height, others) {
