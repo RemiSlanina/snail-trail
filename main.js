@@ -1,4 +1,8 @@
 /** @type {HTMLCanvasElement} */
+/**
+ * Snail Trail © 2025 Remi Slanina
+ * Code licensed MIT · Artwork not for commercial reuse
+ */
 import { Sprite } from "./components/sprite.mjs";
 import { Layer } from "./components/layer.mjs";
 import { isOverlapping } from "./components/utils.js";
