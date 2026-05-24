@@ -40,7 +40,7 @@ export class Layer {
     const targetWidth = this.getTargetWidth(currentCanvasHeight);
 
     if (this.x <= -targetWidth) {
-      this.x += targetWidth;
+      this.x = Math.round(this.x + targetWidth); // Reset to integer to avoid subpixel accumulation
     }
   }
   draw(currentCanvasHeight, ctx) {
@@ -50,13 +50,16 @@ export class Layer {
     const targetWidth = w * heightRatio;
     const targetHeight = currentCanvasHeight;
 
-    // Draw 3 tiles; overlap by 1px to hide seams (Firefox)
+    // Draw 3 tiles to cover the viewport
+    // Use integer positions to avoid subpixel rendering issues in Firefox
+    // Overlap by 1px on each side to hide seams
     for (let i = -1; i <= 1; i++) {
+      const xPos = Math.round(this.x + i * targetWidth);
       ctx.drawImage(
         this.image,
-        Math.floor(this.x + i * targetWidth),
-        this.y,
-        Math.ceil(targetWidth) + 1, //seam in Firefox needs + 1px
+        xPos,
+        0,
+        Math.ceil(targetWidth) + 1,
         targetHeight
       );
     }
